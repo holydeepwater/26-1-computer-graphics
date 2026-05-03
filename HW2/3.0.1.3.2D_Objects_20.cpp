@@ -25,28 +25,51 @@ float centerx = 0.0f, centery = 0.0f, rotate_angle = 0.0f;
 #include "objects.h"
 
 int leftbuttonpressed = 0;
-int animation_mode = 1;
+
+int animation_mode = 1, blackhole_mode = 0;
+float blackhole_time = 0.0f;
+
 int halt = 0;
+
 int draw_level_1 = 0, draw_level_2 = 0, draw_level_3 = 0, draw_level_4 = 0, draw_level_5 = 0;
+
 unsigned int timestamp = 0;
+unsigned int snail_timestamp = 0;
 
 float squareSize = 100.0f;
 
+float snail_x = -500.0f;
+float snail_y = -250.0f;
+float snail_scale = 1.2f;
+
 void timer(int value) {
-	timestamp = (timestamp + 1) % UINT_MAX;
+	snail_timestamp = (snail_timestamp + 1) % UINT_MAX;
+
+	if (animation_mode) {
+		timestamp = (timestamp + 1) % UINT_MAX;
+	}
+
+	if (blackhole_mode) {
+		blackhole_time += 0.05f;
+	}
+	
 	glutPostRedisplay();
-	if (animation_mode)
-		glutTimerFunc(10, timer, 0);
+	glutTimerFunc(10, timer, 0);
 }
 
 void display(void) {
 
-	//halt ±¸Çö
+	//halt êµ¬í˜„
 	float t1 = (halt >= 1) ? 0.0f : timestamp;
 	float t2 = (halt >= 2) ? 0.0f : timestamp;
 	float t3 = (halt >= 3) ? 0.0f : timestamp;
 	float t4 = (halt >= 4) ? 0.0f : timestamp;
 	float t5 = (halt >= 5) ? 0.0f : timestamp;
+
+	float blackhole_factor = 1.0f;
+	if (blackhole_mode) {
+		blackhole_factor = 0.55f + 0.45f * cosf(blackhole_time);
+	}
 
 	glm::mat4 ModelMatrix;
 
@@ -57,16 +80,22 @@ void display(void) {
 	glUniformMatrix4fv(loc_ModelViewProjectionMatrix, 1, GL_FALSE, &ModelViewProjectionMatrix[0][0]);
 	draw_axes();
 
+	snail_x = -500.0f + fmod(snail_timestamp * 0.4f, 1000.0f);
+	snail_y = -250.0f + 30.0f * sinf(snail_timestamp * 0.3f);
+	glm::mat4 ModelMatrix_snail = glm::translate(glm::mat4(1.0f), glm::vec3(snail_x, snail_y, 0.0f));
+	ModelMatrix_snail = glm::scale(ModelMatrix_snail, glm::vec3(snail_scale,snail_scale, 1.0f));
+	ModelViewProjectionMatrix = ViewProjectionMatrix * ModelMatrix_snail;
+	glUniformMatrix4fv(loc_ModelViewProjectionMatrix, 1, GL_FALSE, &ModelViewProjectionMatrix[0][0]);
+	draw_snail();
+
 	ModelMatrix = glm::translate(glm::mat4(1.0f), glm::vec3(centerx, centery, 0.0f));
 	ModelViewProjectionMatrix = ViewProjectionMatrix * ModelMatrix;
 	glUniformMatrix4fv(loc_ModelViewProjectionMatrix, 1, GL_FALSE, &ModelViewProjectionMatrix[0][0]);
-	draw_snail(); //level 0, ¸¶¿ì½º µû¶ó ¿òÁ÷ÀÓ(¿ä±¸Á¶°Ç 2)
+	draw_house(); //level 0, ë§ˆìš°ìŠ¤ ë”°ë¼ ì›€ì§ì„(ìš”êµ¬ì¡°ê±´ 2)
 
-	//»ç°¢Çü ±Ëµµ
-	float time = glutGet(GLUT_ELAPSED_TIME) / 1000.0f;
+	//ì‚¬ê°í˜• ê¶¤ë„
 	float cycle = 4.0f;
-	float t = fmod(time, cycle) / cycle;
-
+	float t = fmod(timestamp*0.01f, cycle) / cycle;
 	float x = 0.0f, y = 0.0f;
 	if (t < 0.25f) {
 		x = -squareSize + 8.0f * squareSize * t;
@@ -93,28 +122,27 @@ void display(void) {
 	if (draw_level_1) {
 		for (int i = 0; i < 4; i++) {
 			glm::mat4 ModelMatrix_1 = glm::rotate(ModelMatrix, (i * 90.0f + t1 * 0.5f)*TO_RADIAN, glm::vec3(0.0f, 0.0f, 1.0f));
-			ModelMatrix_1 = glm::translate(ModelMatrix_1, glm::vec3(300.0f, 0.0f, 0.0f));
+			ModelMatrix_1 = glm::translate(ModelMatrix_1, glm::vec3(300.0f * blackhole_factor, 0.0f, 0.0f)); //ì¶”ê°€ ê¸°ëŠ¥
 			ModelViewProjectionMatrix = ViewProjectionMatrix * ModelMatrix_1;
 			glUniformMatrix4fv(loc_ModelViewProjectionMatrix, 1, GL_FALSE, &ModelViewProjectionMatrix[0][0]);
-			draw_tree(); //level 1, level0¿¡ Á¾¼ÓµÈ ¿òÁ÷ÀÓ, draw_level ·Î on-off(¿ä±¸Á¶°Ç 3)
+			draw_tree(); //level 1, level0ì— ì¢…ì†ëœ ì›€ì§ì„, draw_level ë¡œ on-off(ìš”êµ¬ì¡°ê±´ 3)
 
 			if (draw_level_2) {
 				for (int j = 0; j < 1; j++) {
-					glm::mat4 ModelMatrix_2 = glm::translate(ModelMatrix_1, glm::vec3(x, y, 0.0f)); //»ç°¢Çü ±Ëµµ È¸Àü
-					//ModelMatrix_2 = glm::scale(ModelMatrix_2, glm::vec3(0.4f, 0.4f, 1.0f));
+					glm::mat4 ModelMatrix_2 = glm::translate(ModelMatrix_1, glm::vec3(x*blackhole_factor, y * blackhole_factor, 0.0f)); //ì‚¬ê°í˜• ê¶¤ë„ íšŒì „
 					ModelViewProjectionMatrix = ViewProjectionMatrix * ModelMatrix_2;
 					glUniformMatrix4fv(loc_ModelViewProjectionMatrix, 1, GL_FALSE, &ModelViewProjectionMatrix[0][0]);
 					draw_sunflower(); //level 2
 
 					if (draw_level_3) {
 						for (int k = 0; k < 4; k++) {
-							float sin_angle = (k * 90.0f + t3) * TO_RADIAN; //»çÀÎÆÄÇü ±Ëµµ È¸Àü
-							float radius = 100.0f + 140.0f * sinf(t3 * 0.03f);
+							float sin_angle = (k * 90.0f + t3) * TO_RADIAN; //ì‚¬ì¸íŒŒí˜• ê¶¤ë„ íšŒì „ (ìš”êµ¬ì¡°ê±´ 6)
+							float radius = 180.0f + 140.0f * sinf(t3 * 0.03f);
 							
-							float scale_factor = 1.5f + 1.0f * sinf(t3 * 0.08 + k); //È¸ÀüÇÏ¸é¼­ Å©±â º¯È­
+							float scale_factor = 1.5f + 1.0f * sinf(t3 * 0.08 + k); //íšŒì „í•˜ë©´ì„œ í¬ê¸° ë³€í™” (ìš”êµ¬ì¡°ê±´ 5)
 
 							glm::mat4 ModelMatrix_3 = glm::rotate(ModelMatrix_2, sin_angle, glm::vec3(0.0f, 0.0f, 1.0f));
-							ModelMatrix_3 = glm::translate(ModelMatrix_3, glm::vec3(radius, 0.0f, 0.0f)); 
+							ModelMatrix_3 = glm::translate(ModelMatrix_3, glm::vec3(radius * blackhole_factor, 0.0f, 0.0f)); 
 							glm::mat4 ModelMatrix_3_d = glm::scale(ModelMatrix_3, glm::vec3(scale_factor, scale_factor, 1.0f)); 
 							ModelViewProjectionMatrix = ViewProjectionMatrix * ModelMatrix_3_d; 
 							glUniformMatrix4fv(loc_ModelViewProjectionMatrix, 1, GL_FALSE, &ModelViewProjectionMatrix[0][0]); 
@@ -123,7 +151,7 @@ void display(void) {
 							if (draw_level_4) {
 								for (int l = 0; l < 2; l++) {
 									glm::mat4 ModelMatrix_4 = glm::rotate(ModelMatrix_3, (l * 30.0f + t4) * TO_RADIAN, glm::vec3(0.0f, 0.0f, 1.0f));
-									ModelMatrix_4 = glm::translate(ModelMatrix_4, glm::vec3(100.0f, 0.0f, 0.0f));
+									ModelMatrix_4 = glm::translate(ModelMatrix_4, glm::vec3(100.0f*blackhole_factor, 0.0f, 0.0f));
 									//ModelMatrix_4 = glm::scale(ModelMatrix_4, glm::vec3(3.0f, 3.0f, 1.0f));
 									ModelViewProjectionMatrix = ViewProjectionMatrix * ModelMatrix_4;
 									glUniformMatrix4fv(loc_ModelViewProjectionMatrix, 1, GL_FALSE, &ModelViewProjectionMatrix[0][0]);
@@ -132,11 +160,11 @@ void display(void) {
 									if (draw_level_5) {
 										for (int n = 0; n < 1; n++) {
 											glm::mat4 ModelMatrix_5 = glm::rotate(ModelMatrix_4, (n + t5) * TO_RADIAN, glm::vec3(0.0f, 0.0f, 1.0f));
-											ModelMatrix_5 = glm::translate(ModelMatrix_5, glm::vec3(50.0f, 0.0f, 0.0f));
+											ModelMatrix_5 = glm::translate(ModelMatrix_5, glm::vec3(50.0f*blackhole_factor, 0.0f, 0.0f));
 											ModelMatrix_5 = glm::scale(ModelMatrix_5, glm::vec3(0.5f, 0.5f, 0.1f));
 											ModelViewProjectionMatrix = ViewProjectionMatrix * ModelMatrix_5;
 											glUniformMatrix4fv(loc_ModelViewProjectionMatrix, 1, GL_FALSE, &ModelViewProjectionMatrix[0][0]);
-											draw_bird(); //level5, on-off ±â´É ÀÖÀ½ (¿ä±¸Á¶°Ç 4)
+											draw_bird(); //level5, on-off ê¸°ëŠ¥ ìˆìŒ (ìš”êµ¬ì¡°ê±´ 4)
 										}
 									}
 								}
@@ -158,30 +186,47 @@ void keyboard(unsigned char key, int x, int y) {
 		glutLeaveMainLoop(); // Incur destuction callback for cleanups.
 		break;
 	case 'q':
+	case 'Q':
 		animation_mode = 1 - animation_mode;
-		if (animation_mode) glutTimerFunc(10, timer, 0);
 		break;
 	case 'w':
+	case 'W':
 		halt = (halt + 1) % 6;
 		glutPostRedisplay();
 		break;
+	case 'e':
+	case 'E':
+		blackhole_mode = 1 - blackhole_mode;
+		blackhole_time = 0.0f;
+		glutPostRedisplay();
+		break;
+	case 'r':
+	case 'R':
+		snail_scale = 1.2f;
+		glutPostRedisplay();
+		break;
 	case 'a':
+	case 'A':
 		draw_level_1 = 1 - draw_level_1;
 		glutPostRedisplay();
 		break;
 	case 's':
+	case 'S':
 		draw_level_2 = 1 - draw_level_2;
 		glutPostRedisplay();
 		break;
 	case 'd':
+	case 'D':
 		draw_level_3 = 1 - draw_level_3;
 		glutPostRedisplay();
 		break;
 	case 'f':
+	case 'F':
 		draw_level_4 = 1 - draw_level_4;
 		glutPostRedisplay();
 		break;
 	case 'g':
+	case 'G':
 		draw_level_5 = 1 - draw_level_5;
 		glutPostRedisplay();
 		break;
@@ -194,6 +239,22 @@ void mouse(int button, int state, int x, int y) {
 		leftbuttonpressed = 1;
 	else if ((button == GLUT_LEFT_BUTTON) && (state == GLUT_UP))
 		leftbuttonpressed = 0;
+
+	if ((button == GLUT_RIGHT_BUTTON) && (state == GLUT_DOWN)) {
+		snail_scale *= 2.0f;
+	}
+
+	if (button == 3 && state == GLUT_DOWN) {
+		snail_scale += 0.5f;
+		glutPostRedisplay();
+	}
+
+	if (button == 4 && state == GLUT_DOWN) {
+		snail_scale -= 0.5f;
+		if (snail_scale < 0.1f)
+			snail_scale = 0.2f;
+		glutPostRedisplay();
+	}
 }
 
 void motion(int x, int y) {
@@ -222,6 +283,9 @@ void cleanup(void) {
 
 	glDeleteVertexArrays(1, &VAO_snail);
 	glDeleteBuffers(1, &VBO_snail);
+
+	glDeleteVertexArrays(1, &VAO_house);
+	glDeleteBuffers(1, &VBO_house);
 
 	glDeleteVertexArrays(1, &VAO_sunflower);
 	glDeleteBuffers(1, &VBO_sunflower);
@@ -276,6 +340,7 @@ void initialize_OpenGL(void) {
 void prepare_scene(void) {
 	prepare_axes();
 	prepare_snail();
+	prepare_house();
 	prepare_sunflower();
 	prepare_butterfly();
 	prepare_tree();
@@ -324,8 +389,8 @@ void greetings(char *program_name, char messages[][256], int n_message_lines) {
 void main(int argc, char *argv[]) {
 	char program_name[64] = "Sogang CSE4170 20241620 HW2";
 	char messages[N_MESSAGE_LINES][256] = {
-		"    - Keys used: 'ESC', 'q', 'w', 'a', 's', 'd', 'f', 'g' "
-		"    - Mouse used: L-click and move"
+		"    - Keys used: 'ESC', 'q', 'w', 'e', 'r', 'a', 's', 'd', 'f', 'g' "
+		"    - Mouse used: L-click and move / R-click / wheel UP & DOWN"
 	};
 
 	glutInit(&argc, argv);
